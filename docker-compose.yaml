@@ -1,0 +1,8 @@
+version: '3'
+services:
+  clickhouse-server:
+    image: yandex/clickhouse-server
+    platform: linux/amd64
+    ports:
+      - 9005:9005
+

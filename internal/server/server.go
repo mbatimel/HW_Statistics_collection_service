@@ -7,6 +7,8 @@ import (
 	"net"
 	"net/http"
 	"time"
+	"github.com/mbatimel/HW_Statistics_collection_service/internal/config"
+	"github.com/mbatimel/HW_Statistics_collection_service/internal/statistic"
 )
 var ErrChannelClosed = errors.New("channel is closed")
 type Server interface {
@@ -16,7 +18,7 @@ type Server interface {
 }
 type server struct {
 	srv *http.Server
-	cache cache.ICache
+	statistic statistic.IStatistics
 }
 
 func (s *server) Run(ctx context.Context) error{
@@ -79,74 +81,4 @@ func (s *server)setupRoutes(){
 
 	s.srv.Handler = mx
 	
-}
-
-func (s *server) handleCap(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "Cache capacity: %d", s.cache.Cap())
-}
-
-func (s *server) handleAdd(w http.ResponseWriter, r *http.Request) {
-	key := r.URL.Query().Get("key")
-	value := r.URL.Query().Get("value")
-	if key == "" || value == "" {
-		http.Error(w, "Missing key or value", http.StatusBadRequest)
-		return
-	}
-	s.cache.Add(key, value)
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "Added key %s with value %s", key, value)
-}
-
-func (s *server) handleClear(w http.ResponseWriter, r *http.Request) {
-	if err := s.cache.Clear(); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to clear cache: %v", err), http.StatusInternalServerError)
-		return
-	}
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintln(w, "Cache cleared")
-}
-
-func (s *server) handleAddWithTTL(w http.ResponseWriter, r *http.Request) {
-	key := r.URL.Query().Get("key")
-	value := r.URL.Query().Get("value")
-	ttlStr := r.URL.Query().Get("ttl")
-	if key == "" || value == "" || ttlStr == "" {
-		http.Error(w, "Missing key, value or ttl", http.StatusBadRequest)
-		return
-	}
-	ttl, err := time.ParseDuration(ttlStr)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Invalid ttl: %v", err), http.StatusBadRequest)
-		return
-	}
-	s.cache.AddWithTTL(key, value, ttl)
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "Added key %s with value %s and ttl %s", key, value, ttl)
-}
-
-func (s *server) handleGet(w http.ResponseWriter, r *http.Request) {
-	key := r.URL.Query().Get("key")
-	if key == "" {
-		http.Error(w, "Missing key", http.StatusBadRequest)
-		return
-	}
-	value, ok := s.cache.Get(key)
-	if !ok {
-		http.Error(w, "Key not found", http.StatusNotFound)
-		return
-	}
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "Key: %s, Value: %s", key, value)
-}
-
-func (s *server) handleRemove(w http.ResponseWriter, r *http.Request) {
-	key := r.URL.Query().Get("key")
-	if key == "" {
-		http.Error(w, "Missing key", http.StatusBadRequest)
-		return
-	}
-	s.cache.Remove(key)
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "Removed key %s", key)
 }
