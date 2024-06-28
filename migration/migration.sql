@@ -1,4 +1,8 @@
 -- Создание таблицы OrderBook
+CREATE USER my_user IDENTIFIED BY 'my_password';
+GRANT ALL ON my_database.* TO my_user;
+CREATE DATABASE my_database;
+
 CREATE TABLE OrderBook (
     id Int64,
     exchange String,

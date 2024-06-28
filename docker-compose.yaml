@@ -1,8 +1,14 @@
 version: '3'
 services:
   clickhouse-server:
-    image: yandex/clickhouse-server
+    image: yandex/clickhouse-server:latest
     platform: linux/amd64
     ports:
-      - 9005:9005
+      - "9005:8123"  # ClickHouse HTTP порт по умолчанию
+      - "9006:9000"  # ClickHouse порт для TCP соединений
+    volumes:
+      - ./users.xml:/clickhouse-server/users.d/users.xml
+      - clickhouse-data:/var/lib/clickhouse
 
+volumes:
+  clickhouse-data:

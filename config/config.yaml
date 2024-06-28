@@ -3,6 +3,9 @@ server:
   port: "8080"
 
 clickhouse:
-  host: "localhost"
-  port: "9005"
-  db: "my_database"
+  host: localhost
+  port: 9006
+  db: my_database
+  username: my_user
+  password: my_password
+

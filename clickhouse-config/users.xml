@@ -1,0 +1,26 @@
+<yandex>
+    <profiles>
+        <default/>
+    </profiles>
+
+    <users>
+        <my_user>
+            <password>my_password</password>
+            <networks>
+                <ip>::/0</ip>
+            </networks>
+            <profile>default</profile>
+            <quota>default</quota>
+        </my_user>
+    </users>
+
+    <quotas>
+        <default/>
+    </quotas>
+
+    <databases>
+        <my_database>
+            <engine>Ordinary</engine>
+        </my_database>
+    </databases>
+</yandex>
