@@ -23,8 +23,8 @@ func NewStatisticsService(cfg config.ClickHouse) (*StatisticsService, error) {
 			Username: cfg.Username,
 			Password: cfg.Password,
 		},
-		DialTimeout:       5 * time.Minute,
-		ConnOpenStrategy:  clickhouse.ConnOpenRoundRobin,
+		DialTimeout:      5 * time.Minute,
+		ConnOpenStrategy: clickhouse.ConnOpenRoundRobin,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to ClickHouse: %v", err)
@@ -47,8 +47,8 @@ func (s *StatisticsService) Close() error {
 func (s *StatisticsService) GetOrderBook(exchangeName, pair string) ([]*model.DepthOrder, error) {
 	ctx := context.Background()
 	query := `
-		SELECT price, base_qty
-		FROM order_book
+		SELECT asks, bids
+		FROM OrderBook
 		WHERE exchange = ? AND pair = ?
 	`
 	rows, err := s.conn.Query(ctx, query, exchangeName, pair)
@@ -59,11 +59,19 @@ func (s *StatisticsService) GetOrderBook(exchangeName, pair string) ([]*model.De
 
 	var orderBook []*model.DepthOrder
 	for rows.Next() {
-		var depthOrder model.DepthOrder
-		if err := rows.Scan(&depthOrder.Price, &depthOrder.BaseQty); err != nil {
+		var asks, bids []struct {
+			Price    float64
+			BaseQty  float64
+		}
+		if err := rows.Scan(&asks, &bids); err != nil {
 			return nil, fmt.Errorf("failed to scan row for order book: %v", err)
 		}
-		orderBook = append(orderBook, &depthOrder)
+		for _, ask := range asks {
+			orderBook = append(orderBook, &model.DepthOrder{Price: ask.Price, BaseQty: ask.BaseQty})
+		}
+		for _, bid := range bids {
+			orderBook = append(orderBook, &model.DepthOrder{Price: bid.Price, BaseQty: bid.BaseQty})
+		}
 	}
 
 	if err := rows.Err(); err != nil {
@@ -75,15 +83,31 @@ func (s *StatisticsService) GetOrderBook(exchangeName, pair string) ([]*model.De
 
 func (s *StatisticsService) SaveOrderBook(exchangeName, pair string, orderBook []*model.DepthOrder) error {
 	ctx := context.Background()
-	batch, err := s.conn.PrepareBatch(ctx, "INSERT INTO order_book (exchange, pair, price, base_qty)")
+	batch, err := s.conn.PrepareBatch(ctx, "INSERT INTO OrderBook (exchange, pair, asks, bids)")
 	if err != nil {
 		return fmt.Errorf("failed to prepare batch: %v", err)
 	}
 
+	var asks, bids []struct {
+		Price   float64
+		BaseQty float64
+	}
 	for _, order := range orderBook {
-		if err := batch.Append(exchangeName, pair, order.Price, order.BaseQty); err != nil {
-			return fmt.Errorf("failed to append to batch: %v", err)
+		if order.Price > 0 {
+			asks = append(asks, struct {
+				Price   float64
+				BaseQty float64
+			}{order.Price, order.BaseQty})
+		} else {
+			bids = append(bids, struct {
+				Price   float64
+				BaseQty float64
+			}{order.Price, order.BaseQty})
 		}
+	}
+
+	if err := batch.Append(exchangeName, pair, asks, bids); err != nil {
+		return fmt.Errorf("failed to append to batch: %v", err)
 	}
 
 	if err := batch.Send(); err != nil {
@@ -99,7 +123,7 @@ func (s *StatisticsService) GetOrderHistory(client *model.Client) ([]*model.Hist
 		SELECT client_name, exchange_name, label, pair, side, type_order,
 			   base_qty, price, algorithm_name_placed, lowest_sell_prc, highest_buy_prc,
 			   commission_quote_qty, time_placed
-		FROM order_history
+		FROM HistoryOrder
 		WHERE client_name = ? AND exchange_name = ? AND label = ? AND pair = ?
 	`
 	rows, err := s.conn.Query(ctx, query, client.ClientName, client.ExchangeName, client.Label, client.Pair)
@@ -133,7 +157,7 @@ func (s *StatisticsService) GetOrderHistory(client *model.Client) ([]*model.Hist
 func (s *StatisticsService) SaveOrder(client *model.Client, order *model.HistoryOrder) error {
 	ctx := context.Background()
 	query := `
-		INSERT INTO order_history (client_name, exchange_name, label, pair, side, type_order,
+		INSERT INTO HistoryOrder (client_name, exchange_name, label, pair, side, type_order,
 								   base_qty, price, algorithm_name_placed, lowest_sell_prc, highest_buy_prc,
 								   commission_quote_qty, time_placed)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)

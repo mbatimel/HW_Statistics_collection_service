@@ -93,7 +93,8 @@ curl -X POST http://localhost:8080/save-order-book?exchange_name=Binance&pair=BT
     "price": 10001.0,
     "base_qty": 0.2
   }
-]'
+]
+'
 ```
 
 ### Get Order History
@@ -137,8 +138,10 @@ curl -X POST http://localhost:8080/save-order-history -H "Content-Type: applicat
   "lowest_sell_prc": 10000.0,
   "highest_buy_prc": 10001.0,
   "commission_quote_qty": 0.0001,
-  "time_placed": "2024-06-28 12:00:00"
-}'
+  "time_placed": "2024-06-28T12:00:00Z"
+}
+
+'
 ```
 
 ## Database Migrations

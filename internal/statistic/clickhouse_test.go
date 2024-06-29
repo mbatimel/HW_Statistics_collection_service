@@ -47,7 +47,6 @@ func TestStatisticsService_SaveOrderBook(t *testing.T) {
 	}
 	defer service.Close()
 
-
 	exchangeName := "test_exchange"
 	pair := "BTC/USD"
 	orderBook := []*model.DepthOrder{
@@ -58,6 +57,22 @@ func TestStatisticsService_SaveOrderBook(t *testing.T) {
 	err = service.SaveOrderBook(exchangeName, pair, orderBook)
 	if err != nil {
 		t.Errorf("SaveOrderBook() error = %v", err)
+	}
+
+	// Verify that the data was correctly inserted by querying it back
+	returnedOrderBook, err := service.GetOrderBook(exchangeName, pair)
+	if err != nil {
+		t.Fatalf("failed to get order book: %v", err)
+	}
+
+	if len(returnedOrderBook) != len(orderBook) {
+		t.Fatalf("expected %d orders, but got %d", len(orderBook), len(returnedOrderBook))
+	}
+
+	for i, order := range returnedOrderBook {
+		if order.Price != orderBook[i].Price || order.BaseQty != orderBook[i].BaseQty {
+			t.Errorf("expected order %v, but got %v", orderBook[i], order)
+		}
 	}
 }
 

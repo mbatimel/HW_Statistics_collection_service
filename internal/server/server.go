@@ -12,73 +12,71 @@ import (
 	"github.com/mbatimel/HW_Statistics_collection_service/internal/model"
 	"github.com/mbatimel/HW_Statistics_collection_service/internal/statistic"
 )
+
 var ErrChannelClosed = errors.New("channel is closed")
+
 type Server interface {
 	Run(ctx context.Context) error
 	Close() error
-
 }
+
 type server struct {
-	srv *http.Server
+	srv       *http.Server
 	statistic statistic.IStatistics
 }
 
-func (s *server) Run(ctx context.Context) error{
-	ch:=make(chan error, 1)
+func (s *server) Run(ctx context.Context) error {
+	ch := make(chan error, 1)
 	defer close(ch)
-	go func(){
+	go func() {
 		ch <- s.srv.ListenAndServe()
 	}()
-	select  {
+	select {
 	case err, ok := <-ch:
-		if !ok{
+		if !ok {
 			return ErrChannelClosed
 		}
-		if err != nil{
+		if err != nil {
 			return fmt.Errorf("failed to listen and serve: %w", err)
 		}
 	case <-ctx.Done():
-		if err:=ctx.Err();err!=nil{
-			return fmt.Errorf("context faild: %w", err)
+		if err := ctx.Err(); err != nil {
+			return fmt.Errorf("context failed: %w", err)
 		}
-			
 	}
-	return nil
-}
-func (s *server) Close() error{
 	return nil
 }
 
-func NewServerConfig(cfg config.Config) (Server, error){
-	srv:= http.Server{
+func (s *server) Close() error {
+	return nil
+}
+
+func NewServerConfig(cfg config.Config) (Server, error) {
+	srv := http.Server{
 		Addr: net.JoinHostPort(cfg.Server.Host, cfg.Server.Port),
 	}
-	var statisticservic statistic.IStatistics
-	var err error
-	statisticservic, err = statistic.NewStatisticsService(cfg.ClickHouse)
-		if err != nil {
-			
-			return nil,fmt.Errorf("failed to create statistic: %w", err)
-		}
-	
+	statisticservic, err := statistic.NewStatisticsService(cfg.ClickHouse)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create statistic: %w", err)
+	}
+
 	sv := server{
-		srv :&srv,
+		srv:       &srv,
 		statistic: statisticservic,
 	}
 	sv.setupRoutes()
 	return &sv, nil
 }
 
-func (s *server)setupRoutes(){
-	mx :=http.NewServeMux()
+func (s *server) setupRoutes() {
+	mx := http.NewServeMux()
 
-	mx.HandleFunc("/get-order-book",s.handleGetOrderBook)
-	mx.HandleFunc("/save-order-book",s.handleGetOrderHistory)
-	mx.HandleFunc("/get-order-history",s.handleGetOrderHistory)
-	mx.HandleFunc("/save-order-history",s.handleSaveOrder)
+	mx.HandleFunc("/get-order-book", s.handleGetOrderBook)
+	mx.HandleFunc("/save-order-book", s.handleSaveOrderBook)
+	mx.HandleFunc("/get-order-history", s.handleGetOrderHistory)
+	mx.HandleFunc("/save-order-history", s.handleSaveOrderHistory)
 
 	s.srv.Handler = mx
-	
 }
 
 func (s *server) handleGetOrderBook(w http.ResponseWriter, r *http.Request) {
@@ -96,22 +94,25 @@ func (s *server) handleGetOrderBook(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) handleSaveOrderBook(w http.ResponseWriter, r *http.Request) {
-	var orderBook []*model.DepthOrder
-	if err := json.NewDecoder(r.Body).Decode(&orderBook); err != nil {
-		http.Error(w, fmt.Sprintf("failed to decode request body: %v", err), http.StatusBadRequest)
-		return
-	}
+    var orderBook []*model.DepthOrder
+    if err := json.NewDecoder(r.Body).Decode(&orderBook); err != nil {
+        http.Error(w, fmt.Sprintf("failed to decode request body: %v", err), http.StatusBadRequest)
+        return
+    }
 
-	exchangeName := r.URL.Query().Get("exchange_name")
-	pair := r.URL.Query().Get("pair")
+    exchangeName := r.URL.Query().Get("exchange_name")
+    pair := r.URL.Query().Get("pair")
 
-	if err := s.statistic.SaveOrderBook(exchangeName, pair, orderBook); err != nil {
-		http.Error(w, fmt.Sprintf("failed to save order book: %v", err), http.StatusInternalServerError)
-		return
-	}
+    // Example: Assuming statistic.SaveOrderBook takes []*model.DepthOrder
+    if err := s.statistic.SaveOrderBook(exchangeName, pair, orderBook); err != nil {
+        http.Error(w, fmt.Sprintf("failed to save order book: %v", err), http.StatusInternalServerError)
+        return
+    }
 
-	w.WriteHeader(http.StatusOK)
+    w.WriteHeader(http.StatusOK)
 }
+
+
 
 func (s *server) handleGetOrderHistory(w http.ResponseWriter, r *http.Request) {
 	var client model.Client
@@ -130,7 +131,7 @@ func (s *server) handleGetOrderHistory(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(orderHistory)
 }
 
-func (s *server) handleSaveOrder(w http.ResponseWriter, r *http.Request) {
+func (s *server) handleSaveOrderHistory(w http.ResponseWriter, r *http.Request) {
 	var order model.HistoryOrder
 	if err := json.NewDecoder(r.Body).Decode(&order); err != nil {
 		http.Error(w, fmt.Sprintf("failed to decode request body: %v", err), http.StatusBadRequest)
