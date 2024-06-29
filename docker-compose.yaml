@@ -7,8 +7,7 @@ services:
       - "9005:8123"  # ClickHouse HTTP порт по умолчанию
       - "9006:9000"  # ClickHouse порт для TCP соединений
     volumes:
-      - ./users.xml:/clickhouse-server/users.d/users.xml
+      - ./clickhouse-config/users.xml:/etc/clickhouse-server/users.d/users.xml
       - clickhouse-data:/var/lib/clickhouse
-
 volumes:
   clickhouse-data:

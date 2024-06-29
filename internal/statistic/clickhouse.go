@@ -23,7 +23,7 @@ func NewStatisticsService(cfg config.ClickHouse) (*StatisticsService, error) {
 			Username: cfg.Username,
 			Password: cfg.Password,
 		},
-		DialTimeout:       5 * time.Second,
+		DialTimeout:       5 * time.Minute,
 		ConnOpenStrategy:  clickhouse.ConnOpenRoundRobin,
 	})
 	if err != nil {
